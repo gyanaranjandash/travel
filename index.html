@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Travels — Gyana Ranjan Dash</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* ── Page-specific overrides ── */
+    body { overflow: hidden; }
+
+    #globe-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      cursor: grab;
+    }
+    #globe-canvas:active { cursor: grabbing; }
+
+    /* ── Top header bar ── */
+    .site-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.6rem 3rem;
+      background: linear-gradient(to bottom, rgba(5,6,10,0.9) 0%, transparent 100%);
+    }
+    .site-header .wordmark {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem;
+      font-weight: 300;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .site-header .wordmark span { color: var(--accent); }
+    .site-header nav a {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 300;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      margin-left: 2rem;
+      transition: color 0.3s;
+    }
+    .site-header nav a:hover { color: var(--fg); }
+
+    /* ── Hero text ── */
+    .hero-text {
+      position: fixed;
+      top: 50%;
+      left: 3rem;
+      transform: translateY(-50%);
+      z-index: 10;
+      pointer-events: none;
+    }
+    .hero-text .eyebrow {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 300;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.8rem;
+      opacity: 0;
+      animation: fadeUp 1s 0.4s forwards;
+    }
+    .hero-text h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(3rem, 6vw, 5.5rem);
+      font-weight: 300;
+      line-height: 1.05;
+      color: var(--fg);
+      margin: 0;
+      opacity: 0;
+      animation: fadeUp 1s 0.6s forwards;
+    }
+    .hero-text h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+    .hero-text .sub {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-top: 1rem;
+      opacity: 0;
+      animation: fadeUp 1s 0.8s forwards;
+    }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed;
+      z-index: 30;
+      pointer-events: none;
+      background: rgba(10, 12, 20, 0.92);
+      border: 1px solid rgba(100, 160, 255, 0.25);
+      border-radius: 4px;
+      padding: 0.5rem 0.9rem;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      backdrop-filter: blur(12px);
+      transform: translate(-50%, -130%);
+    }
+    #tooltip.show { display: flex; }
+    #tooltip .tip-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--fg);
+    }
+    #tooltip .tip-hint {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 300;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    /* ── Destination count / footer ── */
+    .globe-footer {
+      position: fixed;
+      bottom: 2rem;
+      right: 3rem;
+      z-index: 20;
+      text-align: right;
+      opacity: 0;
+      animation: fadeUp 1s 1.2s forwards;
+    }
+    .globe-footer .count {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.8rem;
+      font-weight: 300;
+      color: var(--fg);
+      line-height: 1;
+    }
+    .globe-footer .count span { color: var(--accent); }
+    .globe-footer .label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 300;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Scroll hint ── */
+    .scroll-hint {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      opacity: 0;
+      animation: fadeUp 1s 1.5s forwards;
+    }
+    .scroll-hint span {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.62rem;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .scroll-hint .line {
+      width: 1px;
+      height: 28px;
+      background: linear-gradient(to bottom, var(--accent), transparent);
+      animation: linePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes linePulse {
+      0%, 100% { opacity: 0.4; transform: scaleY(1); }
+      50% { opacity: 1; transform: scaleY(1.2); }
+    }
+
+    /* ── Pin list overlay (bottom-left) ── */
+    .pin-list {
+      position: fixed;
+      bottom: 2rem;
+      left: 3rem;
+      z-index: 20;
+      opacity: 0;
+      animation: fadeUp 1s 1.4s forwards;
+    }
+    .pin-list .pl-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 300;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+    .pin-list a {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      text-decoration: none;
+      margin-bottom: 0.45rem;
+      opacity: 0.7;
+      transition: opacity 0.3s;
+    }
+    .pin-list a:hover { opacity: 1; }
+    .pin-list a .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      flex-shrink: 0;
+    }
+    .pin-list a .pl-name {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 300;
+      letter-spacing: 0.1em;
+      color: var(--fg);
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 600px) {
+      .site-header { padding: 1.2rem 1.4rem; }
+      .site-header nav { display: none; }
+      .hero-text { left: 1.4rem; }
+      .pin-list, .globe-footer { display: none; }
+      .scroll-hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="globe-canvas"></canvas>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="wordmark">Gyana Ranjan <span>Dash</span></div>
+    <nav>
+      <a href="https://gyanaranjandash.in">Home</a>
+      <a href="/travel/" class="active">Travels</a>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <div class="hero-text">
+    <div class="eyebrow">Field Notes</div>
+    <h1>Every road<br/>taken <em>leaves</em><br/>a mark.</h1>
+    <p class="sub">Click a glowing pin to explore a destination.</p>
+  </div>
+
+  <!-- Tooltip -->
+  <div id="tooltip">
+    <div class="tip-name" id="tooltip-name"></div>
+    <div class="tip-hint">Click to explore →</div>
+  </div>
+
+  <!-- Pin List -->
+  <div class="pin-list">
+    <div class="pl-label">Destinations</div>
+    <a href="nainital.html"><span class="dot"></span><span class="pl-name">Nainital</span></a>
+    <a href="shillong.html"><span class="dot"></span><span class="pl-name">Shillong</span></a>
+    <a href="mumbai.html"><span class="dot"></span><span class="pl-name">Mumbai</span></a>
+  </div>
+
+  <!-- Footer stat -->
+  <div class="globe-footer">
+    <div class="count"><span>03</span></div>
+    <div class="label">Destinations Logged</div>
+  </div>
+
+  <!-- Scroll hint -->
+  <div class="scroll-hint">
+    <span>Drag to rotate</span>
+    <div class="line"></div>
+  </div>
+
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
