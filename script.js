@@ -1,339 +1,319 @@
 /* ============================================================
-   TRAVEL MICROSITE — Globe Script
-   Three.js r128 — Vanilla JS
+   TRAVEL MICROSITE — Globe Script  |  Three.js r128
    ============================================================ */
-
 (function () {
   'use strict';
 
-  // ── Destination data ──────────────────────────────────────
-  const DESTINATIONS = [
-    {
-      name: 'Nainital',
-      lat: 29.3803,
-      lon: 79.4636,
-      url: 'nainital.html',
-      desc: 'Lake town in the Kumaon Himalayas'
-    },
-    {
-      name: 'Shillong',
-      lat: 25.5788,
-      lon: 91.8933,
-      url: 'shillong.html',
-      desc: 'Scotland of the East'
-    },
-    {
-      name: 'Mumbai',
-      lat: 19.0760,
-      lon: 72.8777,
-      url: 'mumbai.html',
-      desc: 'The city that never sleeps'
-    }
+  /* ── All destinations ─────────────────────────────────── */
+  var DESTINATIONS = [
+    // Existing
+    { name: 'Mumbai',        lat: 19.0760,  lon:  72.8777, url: 'mumbai.html' },
+    { name: 'Nainital',      lat: 29.3803,  lon:  79.4636, url: 'nainital.html' },
+    { name: 'Shillong',      lat: 25.5788,  lon:  91.8933, url: 'shillong.html' },
+    // India – new
+    { name: 'Delhi',         lat: 28.6139,  lon:  77.2090, url: 'delhi.html' },
+    { name: 'Amritsar',      lat: 31.6340,  lon:  74.8723, url: 'amritsar.html' },
+    { name: 'Kanpur',        lat: 26.4499,  lon:  80.3319, url: 'kanpur.html' },
+    { name: 'Goa',           lat: 15.2993,  lon:  74.1240, url: 'goa.html' },
+    { name: 'Bhubaneswar',   lat: 20.2961,  lon:  85.8245, url: 'bhubaneswar.html' },
+    { name: 'Vizag',         lat: 17.6868,  lon:  83.2185, url: 'vizag.html' },
+    { name: 'Bengaluru',     lat: 12.9716,  lon:  77.5946, url: 'bengaluru.html' },
+    { name: 'Varanasi',      lat: 25.3176,  lon:  82.9739, url: 'varanasi.html' },
+    { name: 'Lucknow',       lat: 26.8467,  lon:  80.9462, url: 'lucknow.html' },
+    { name: 'Kolkata',       lat: 22.5726,  lon:  88.3639, url: 'kolkata.html' },
+    { name: 'Dehradun',      lat: 30.3165,  lon:  78.0322, url: 'dehradun.html' },
+    { name: 'Chandigarh',    lat: 30.7333,  lon:  76.7794, url: 'chandigarh.html' },
+    { name: 'Chennai',       lat: 13.0827,  lon:  80.2707, url: 'chennai.html' },
+    // Japan
+    { name: 'Tokyo',         lat: 35.6762,  lon: 139.6503, url: 'tokyo.html' },
+    { name: 'Kyoto',         lat: 35.0116,  lon: 135.7681, url: 'kyoto.html' },
+    { name: 'Nara',          lat: 34.6851,  lon: 135.8048, url: 'nara.html' },
+    { name: 'Lake Yamanaka', lat: 35.4122,  lon: 138.8680, url: 'lake-yamanaka.html' },
+    { name: 'Nagoya',        lat: 35.1815,  lon: 136.9066, url: 'nagoya.html' },
   ];
 
-  // ── Coordinate conversion ─────────────────────────────────
-  function latLonToVec3(lat, lon, radius) {
-    const phi   = (90 - lat) * (Math.PI / 180);
-    const theta = (lon + 180) * (Math.PI / 180);
+  /* ── lat/lon → Three.js Vector3 ──────────────────────── */
+  function ll2v(lat, lon, r) {
+    var phi   = (90 - lat) * (Math.PI / 180);
+    var theta = (lon + 180) * (Math.PI / 180);
     return new THREE.Vector3(
-      -radius * Math.sin(phi) * Math.cos(theta),
-       radius * Math.cos(phi),
-       radius * Math.sin(phi) * Math.sin(theta)
+      -r * Math.sin(phi) * Math.cos(theta),
+       r * Math.cos(phi),
+       r * Math.sin(phi) * Math.sin(theta)
     );
   }
 
-  // ── Scene setup ───────────────────────────────────────────
-  const canvas   = document.getElementById('globe-canvas');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  /* ── Renderer / Scene / Camera ───────────────────────── */
+  var canvas   = document.getElementById('globe-canvas');
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x05060a, 1);
 
-  const scene = new THREE.Scene();
-
-  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+  var scene  = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
   camera.position.z = 2.8;
 
-  // ── Lighting ──────────────────────────────────────────────
-  const ambient = new THREE.AmbientLight(0x334466, 0.6);
-  scene.add(ambient);
+  var targetZ    = 2.8;
+  var MIN_Z      = 1.5;
+  var MAX_Z      = 5.5;
 
-  const sun = new THREE.DirectionalLight(0x8ab4f8, 1.4);
+  /* ── Lighting ────────────────────────────────────────── */
+  scene.add(new THREE.AmbientLight(0x334466, 0.6));
+  var sun = new THREE.DirectionalLight(0x8ab4f8, 1.4);
   sun.position.set(5, 3, 5);
   scene.add(sun);
-
-  const rim = new THREE.DirectionalLight(0x4466aa, 0.3);
+  var rim = new THREE.DirectionalLight(0x4466aa, 0.3);
   rim.position.set(-5, -1, -3);
   scene.add(rim);
 
-  // ── Globe ─────────────────────────────────────────────────
-  const GLOBE_RADIUS = 1.0;
+  /* ── Globe mesh ──────────────────────────────────────── */
+  var R = 1.0;
+  var tl = new THREE.TextureLoader();
 
-  const globeGeo = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64);
-
-  // Earth texture from NASA/public CDN
-  const texLoader  = new THREE.TextureLoader();
-  const earthTex   = texLoader.load(
-    'https://unpkg.com/three-globe@2.24.3/example/img/earth-blue-marble.jpg',
-    undefined, undefined,
-    () => {
-      // Fallback gradient material if texture fails
-      globeMesh.material = new THREE.MeshPhongMaterial({
-        color: 0x1a3a6e,
-        shininess: 20,
-        specular: 0x224488
-      });
-    }
-  );
-  const specTex = texLoader.load('https://unpkg.com/three-globe@2.24.3/example/img/earth-water.png');
-  const bumpTex = texLoader.load('https://unpkg.com/three-globe@2.24.3/example/img/earth-topology.png');
-
-  const globeMat = new THREE.MeshPhongMaterial({
-    map:         earthTex,
-    specularMap: specTex,
-    bumpMap:     bumpTex,
+  var globeGeo = new THREE.SphereGeometry(R, 72, 72);
+  var globeMat = new THREE.MeshPhongMaterial({
+    map:         tl.load('https://unpkg.com/three-globe@2.24.3/example/img/earth-blue-marble.jpg'),
+    specularMap: tl.load('https://unpkg.com/three-globe@2.24.3/example/img/earth-water.png'),
+    bumpMap:     tl.load('https://unpkg.com/three-globe@2.24.3/example/img/earth-topology.png'),
     bumpScale:   0.004,
     specular:    new THREE.Color(0x334466),
     shininess:   18
   });
-
-  const globeMesh = new THREE.Mesh(globeGeo, globeMat);
+  var globeMesh = new THREE.Mesh(globeGeo, globeMat);
   scene.add(globeMesh);
 
-  // ── Atmosphere glow ───────────────────────────────────────
-  const atmosGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.03, 64, 64);
-  const atmosMat = new THREE.MeshPhongMaterial({
-    color:       0x4488ff,
-    transparent: true,
-    opacity:     0.06,
-    side:        THREE.FrontSide
-  });
-  const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
-  scene.add(atmosMesh);
+  // Atmosphere layers
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(R * 1.03, 64, 64),
+    new THREE.MeshPhongMaterial({ color: 0x4488ff, transparent: true, opacity: 0.055 })
+  ));
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(R * 1.09, 64, 64),
+    new THREE.MeshPhongMaterial({ color: 0x2255cc, transparent: true, opacity: 0.022, side: THREE.BackSide })
+  ));
 
-  // Outer glow ring
-  const outerGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.08, 64, 64);
-  const outerMat = new THREE.MeshPhongMaterial({
-    color:       0x2255cc,
-    transparent: true,
-    opacity:     0.025,
-    side:        THREE.BackSide
-  });
-  scene.add(new THREE.Mesh(outerGeo, outerMat));
-
-  // ── Stars ─────────────────────────────────────────────────
-  function buildStars(count) {
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const r     = 200 + Math.random() * 300;
-      const theta = Math.random() * 2 * Math.PI;
-      const phi   = Math.acos(2 * Math.random() - 1);
-      positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.cos(phi);
-      positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  /* ── Stars ───────────────────────────────────────────── */
+  (function () {
+    var n   = 4500;
+    var pos = new Float32Array(n * 3);
+    for (var i = 0; i < n; i++) {
+      var r = 200 + Math.random() * 300;
+      var t = Math.random() * 2 * Math.PI;
+      var p = Math.acos(2 * Math.random() - 1);
+      pos[i*3]   = r * Math.sin(p) * Math.cos(t);
+      pos[i*3+1] = r * Math.cos(p);
+      pos[i*3+2] = r * Math.sin(p) * Math.sin(t);
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const mat = new THREE.PointsMaterial({
-      color: 0xffffff,
-      size:  0.5,
-      transparent: true,
-      opacity: 0.65,
-      sizeAttenuation: true
-    });
-    return new THREE.Points(geo, mat);
-  }
-  scene.add(buildStars(4000));
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+      color: 0xffffff, size: 0.45, transparent: true, opacity: 0.6, sizeAttenuation: true
+    })));
+  })();
 
-  // ── Pin group ─────────────────────────────────────────────
-  const pinGroup = new THREE.Group();
+  /* ── Pin markers ─────────────────────────────────────── */
+  var pinGroup = new THREE.Group();
   globeMesh.add(pinGroup);
+  var pinMeshes = [];
 
-  const pinMeshes = []; // { mesh, ring, dest }
+  DESTINATIONS.forEach(function (dest) {
+    var pos = ll2v(dest.lat, dest.lon, R + 0.009);
 
-  DESTINATIONS.forEach(dest => {
-    const pos = latLonToVec3(dest.lat, dest.lon, GLOBE_RADIUS + 0.008);
-
-    // Core dot
-    const dotGeo = new THREE.SphereGeometry(0.018, 12, 12);
-    const dotMat = new THREE.MeshBasicMaterial({ color: 0x4f9cf9 });
-    const dot    = new THREE.Mesh(dotGeo, dotMat);
+    var dot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.015, 12, 12),
+      new THREE.MeshBasicMaterial({ color: 0x4f9cf9 })
+    );
     dot.position.copy(pos);
-    dot.userData.dest = dest;
+    dot.userData.dest  = dest;
+    dot.userData.rings = [];
     pinGroup.add(dot);
     pinMeshes.push(dot);
 
-    // Pulse ring 1
-    const ring1Geo = new THREE.RingGeometry(0.022, 0.034, 24);
-    const ring1Mat = new THREE.MeshBasicMaterial({
-      color:       0x4f9cf9,
-      transparent: true,
-      opacity:     0.6,
-      side:        THREE.DoubleSide
+    // Two pulse rings per pin
+    [0x4f9cf9, 0xa78bfa].forEach(function (col, i) {
+      var ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.019, 0.029, 24),
+        new THREE.MeshBasicMaterial({
+          color: col, transparent: true,
+          opacity: i === 0 ? 0.65 : 0.38, side: THREE.DoubleSide
+        })
+      );
+      ring.position.copy(pos);
+      ring.lookAt(new THREE.Vector3(0, 0, 0));
+      ring.userData.phase    = Math.random() * Math.PI * 2 + i * Math.PI;
+      ring.userData.baseOpac = i === 0 ? 0.65 : 0.38;
+      pinGroup.add(ring);
+      dot.userData.rings.push(ring);
     });
-    const ring1 = new THREE.Mesh(ring1Geo, ring1Mat);
-    ring1.position.copy(pos);
-    ring1.lookAt(new THREE.Vector3(0, 0, 0));
-    ring1.userData.baseScale = 1;
-    ring1.userData.phase = Math.random() * Math.PI * 2;
-    pinGroup.add(ring1);
-
-    // Pulse ring 2 (offset phase)
-    const ring2Geo = new THREE.RingGeometry(0.022, 0.034, 24);
-    const ring2Mat = new THREE.MeshBasicMaterial({
-      color:       0xa78bfa,
-      transparent: true,
-      opacity:     0.35,
-      side:        THREE.DoubleSide
-    });
-    const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
-    ring2.position.copy(pos);
-    ring2.lookAt(new THREE.Vector3(0, 0, 0));
-    ring2.userData.phase = ring1.userData.phase + Math.PI;
-    pinGroup.add(ring2);
-
-    dot.userData.rings = [ring1, ring2];
   });
 
-  // ── Raycaster for interaction ─────────────────────────────
-  const raycaster = new THREE.Raycaster();
-  const mouse     = new THREE.Vector2();
-  const tooltip   = document.getElementById('tooltip');
-  const tipName   = document.getElementById('tooltip-name');
+  /* ── DOM refs ────────────────────────────────────────── */
+  var tooltip  = document.getElementById('tooltip');
+  var tipName  = document.getElementById('tooltip-name');
+  var zoomInEl = document.getElementById('zoom-in');
+  var zoomOutEl= document.getElementById('zoom-out');
 
-  let hoveredDest = null;
+  /* ── State ───────────────────────────────────────────── */
+  var hoveredDest    = null;
+  var isDragging     = false;
+  var isPinching     = false;
+  var dragMoved      = false;
+  var prevMX = 0, prevMY = 0;
+  var velX = 0, velY = 0;
+  var DRAG_SPEED = 0.005;
+  var INERTIA    = 0.91;
 
-  function updateMouse(e) {
-    const x = e.clientX !== undefined ? e.clientX : e.touches[0].clientX;
-    const y = e.clientY !== undefined ? e.clientY : e.touches[0].clientY;
-    mouse.x =  (x / window.innerWidth)  * 2 - 1;
-    mouse.y = -(y / window.innerHeight) * 2 + 1;
-    return { x, y };
+  // Pinch state
+  var pinchStartDist = 0;
+  var pinchStartZ    = 2.8;
+
+  /* ── Mouse interaction ───────────────────────────────── */
+  var raycaster = new THREE.Raycaster();
+  var mouse     = new THREE.Vector2();
+
+  function toNDC(cx, cy) {
+    mouse.x =  (cx / window.innerWidth)  * 2 - 1;
+    mouse.y = -(cy / window.innerHeight) * 2 + 1;
   }
 
-  window.addEventListener('mousemove', e => {
-    const { x, y } = updateMouse(e);
+  canvas.addEventListener('mousedown', function (e) {
+    isDragging = true; dragMoved = false;
+    prevMX = e.clientX; prevMY = e.clientY;
+    velX = velY = 0;
+  });
+  window.addEventListener('mouseup', function () { isDragging = false; });
+
+  window.addEventListener('mousemove', function (e) {
+    if (isDragging) {
+      var dx = e.clientX - prevMX;
+      var dy = e.clientY - prevMY;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved = true;
+      velX = dy * DRAG_SPEED;
+      velY = dx * DRAG_SPEED;
+      globeMesh.rotation.x += velX;
+      globeMesh.rotation.y += velY;
+      prevMX = e.clientX; prevMY = e.clientY;
+      return;
+    }
+    // Hover detection
+    toNDC(e.clientX, e.clientY);
     raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObjects(pinMeshes);
+    var hits = raycaster.intersectObjects(pinMeshes);
     if (hits.length > 0) {
-      const dest = hits[0].object.userData.dest;
-      hoveredDest = dest;
-      tipName.textContent = dest.name;
-      tooltip.style.left = x + 'px';
-      tooltip.style.top  = y + 'px';
+      hoveredDest = hits[0].object.userData.dest;
+      tipName.textContent = hoveredDest.name;
+      tooltip.style.left = e.clientX + 'px';
+      tooltip.style.top  = e.clientY + 'px';
       tooltip.classList.add('show');
       canvas.style.cursor = 'pointer';
     } else {
       hoveredDest = null;
       tooltip.classList.remove('show');
-      canvas.style.cursor = isDragging ? 'grabbing' : 'grab';
+      canvas.style.cursor = 'grab';
     }
   });
 
-  window.addEventListener('click', e => {
-    updateMouse(e);
+  window.addEventListener('click', function (e) {
+    if (dragMoved) return;
+    toNDC(e.clientX, e.clientY);
     raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObjects(pinMeshes);
+    var hits = raycaster.intersectObjects(pinMeshes);
     if (hits.length > 0) {
-      const dest = hits[0].object.userData.dest;
-      window.location.href = dest.url;
+      window.location.href = hits[0].object.userData.dest.url;
     }
   });
 
-  // ── Drag to rotate ────────────────────────────────────────
-  let isDragging    = false;
-  let prevMouseX    = 0;
-  let prevMouseY    = 0;
-  let velX          = 0;
-  let velY          = 0;
-  const DRAG_SPEED  = 0.005;
-  const INERTIA     = 0.92;
+  /* ── Mouse wheel zoom ────────────────────────────────── */
+  window.addEventListener('wheel', function (e) {
+    targetZ = Math.max(MIN_Z, Math.min(MAX_Z, targetZ + e.deltaY * 0.003));
+  }, { passive: true });
 
-  canvas.addEventListener('mousedown', e => {
-    isDragging = true;
-    prevMouseX = e.clientX;
-    prevMouseY = e.clientY;
-    velX = velY = 0;
-  });
+  /* ── Touch drag ──────────────────────────────────────── */
+  canvas.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 1) {
+      isDragging = true; isPinching = false; dragMoved = false;
+      prevMX = e.touches[0].clientX; prevMY = e.touches[0].clientY;
+      velX = velY = 0;
+    } else if (e.touches.length === 2) {
+      isPinching = true; isDragging = false;
+      pinchStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      pinchStartZ = camera.position.z;
+    }
+  }, { passive: true });
 
-  window.addEventListener('mouseup', () => { isDragging = false; });
+  canvas.addEventListener('touchend', function (e) {
+    if (e.touches.length < 2) isPinching = false;
+    if (e.touches.length === 0) isDragging = false;
+  }, { passive: true });
 
-  window.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    const dx = e.clientX - prevMouseX;
-    const dy = e.clientY - prevMouseY;
+  canvas.addEventListener('touchmove', function (e) {
+    if (isPinching && e.touches.length === 2) {
+      var dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      targetZ = Math.max(MIN_Z, Math.min(MAX_Z, pinchStartZ * (pinchStartDist / dist)));
+      return;
+    }
+    if (!isDragging || e.touches.length !== 1) return;
+    var dx = e.touches[0].clientX - prevMX;
+    var dy = e.touches[0].clientY - prevMY;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved = true;
     velX = dy * DRAG_SPEED;
     velY = dx * DRAG_SPEED;
     globeMesh.rotation.x += velX;
     globeMesh.rotation.y += velY;
-    prevMouseX = e.clientX;
-    prevMouseY = e.clientY;
+    prevMX = e.touches[0].clientX; prevMY = e.touches[0].clientY;
+  }, { passive: true });
+
+  /* ── Zoom buttons ────────────────────────────────────── */
+  zoomInEl.addEventListener('click', function () {
+    targetZ = Math.max(MIN_Z, targetZ - 0.4);
+  });
+  zoomOutEl.addEventListener('click', function () {
+    targetZ = Math.min(MAX_Z, targetZ + 0.4);
   });
 
-  // Touch drag
-  canvas.addEventListener('touchstart', e => {
-    isDragging = true;
-    prevMouseX = e.touches[0].clientX;
-    prevMouseY = e.touches[0].clientY;
-    velX = velY = 0;
-  }, { passive: true });
-
-  canvas.addEventListener('touchend', () => { isDragging = false; });
-
-  canvas.addEventListener('touchmove', e => {
-    if (!isDragging) return;
-    const dx = e.touches[0].clientX - prevMouseX;
-    const dy = e.touches[0].clientY - prevMouseY;
-    velX = dy * DRAG_SPEED;
-    velY = dx * DRAG_SPEED;
-    globeMesh.rotation.x += velX;
-    globeMesh.rotation.y += velY;
-    prevMouseX = e.touches[0].clientX;
-    prevMouseY = e.touches[0].clientY;
-  }, { passive: true });
-
-  // ── Scroll to zoom ────────────────────────────────────────
-  window.addEventListener('wheel', e => {
-    camera.position.z = Math.max(1.8, Math.min(5.0, camera.position.z + e.deltaY * 0.003));
-  }, { passive: true });
-
-  // ── Resize ────────────────────────────────────────────────
-  window.addEventListener('resize', () => {
+  /* ── Resize ──────────────────────────────────────────── */
+  window.addEventListener('resize', function () {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  // ── Animate ───────────────────────────────────────────────
-  const clock = new THREE.Clock();
+  /* ── Animation loop ──────────────────────────────────── */
+  var clock = new THREE.Clock();
 
   function animate() {
     requestAnimationFrame(animate);
-    const t = clock.getElapsedTime();
+    var t = clock.getElapsedTime();
 
-    // Auto-rotate when not dragging
-    if (!isDragging) {
-      globeMesh.rotation.y += 0.0012;
-      // Inertia
+    // Smooth zoom
+    camera.position.z += (targetZ - camera.position.z) * 0.08;
+
+    // Auto-rotate + inertia
+    if (!isDragging && !isPinching) {
+      globeMesh.rotation.y += 0.0009;
       velX *= INERTIA;
       velY *= INERTIA;
+      globeMesh.rotation.x += velX;
+      globeMesh.rotation.y += velY;
     }
 
-    // Pulse rings
-    pinMeshes.forEach(dot => {
-      dot.userData.rings.forEach((ring, i) => {
-        const phase = ring.userData.phase;
-        const s = 1 + 0.9 * ((Math.sin(t * 1.6 + phase) + 1) / 2);
+    // Animate pulse rings
+    pinMeshes.forEach(function (dot) {
+      dot.userData.rings.forEach(function (ring) {
+        var s = 1 + 0.9 * ((Math.sin(t * 1.55 + ring.userData.phase) + 1) / 2);
         ring.scale.set(s, s, s);
-        ring.material.opacity = 0.6 * (1 - (s - 1) / 0.9);
+        ring.material.opacity = ring.userData.baseOpac * (1 - (s - 1) / 0.9);
       });
-    });
-
-    // Hover highlight
-    pinMeshes.forEach(dot => {
-      const isHovered = hoveredDest && dot.userData.dest.name === hoveredDest.name;
-      dot.material.color.setHex(isHovered ? 0xffffff : 0x4f9cf9);
-      dot.scale.setScalar(isHovered ? 1.5 : 1.0);
+      var isHov = hoveredDest && dot.userData.dest.name === hoveredDest.name;
+      dot.material.color.setHex(isHov ? 0xffffff : 0x4f9cf9);
+      dot.scale.setScalar(isHov ? 1.7 : 1.0);
     });
 
     renderer.render(scene, camera);
